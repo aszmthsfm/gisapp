@@ -12,9 +12,22 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Background="#2B579A">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="武汉大学地图生产地理空间数据工程总体设计书" Foreground="White" FontSize="20" FontWeight="Bold" Margin="15,0,0,0"/>
-            </StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="武汉大学地图生产地理空间数据工程" Foreground="White" FontSize="20" FontWeight="Bold" Margin="15,0,0,0" VerticalAlignment="Center"/>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,15,0">
+                    <Button x:Name="BtnPan" Content="🖐 平移" Width="70" Height="32" Margin="5,0" Background="White" BorderThickness="0" Cursor="Hand" Click="BtnPan_Click"/>
+                    <Button x:Name="BtnZoomIn" Content="🔍 放大" Width="70" Height="32" Margin="5,0" Background="White" BorderThickness="0" Cursor="Hand" Click="BtnZoomIn_Click"/>
+                    <Button x:Name="BtnZoomOut" Content="🔎 缩小" Width="70" Height="32" Margin="5,0" Background="White" BorderThickness="0" Cursor="Hand" Click="BtnZoomOut_Click"/>
+                    <Button x:Name="BtnFullExtent" Content="🌍 全图" Width="70" Height="32" Margin="5,0" Background="White" BorderThickness="0" Cursor="Hand" Click="BtnFullExtent_Click"/>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <Grid Grid.Row="1">
@@ -35,9 +48,21 @@
             <Border Grid.Column="2" Background="White" BorderBrush="#DDD" BorderThickness="1,0,0,0">
                 <StackPanel Margin="10">
                     <TextBlock Text="查询条件" FontWeight="Bold" Margin="0,0,0,10"/>
-                    <TextBlock Text="图层名称:"/>
-                    <TextBox Margin="0,5,0,10" Height="25"/>
-                    <Button Content="查询" Background="#2B579A" Foreground="White" Height="30" BorderThickness="0"/>
+                    <TextBlock Text="建筑名称:"/>
+                    <TextBox x:Name="txtSearchName" Margin="0,5,0,10" Height="25" VerticalContentAlignment="Center"/>
+                    <Button x:Name="btnSearch" Content="查询" Background="#2B579A" Foreground="White" Height="30" BorderThickness="0" Cursor="Hand" Click="BtnSearch_Click"/>
+
+                    <TextBlock Text="详细信息" FontWeight="Bold" Margin="0,15,0,5"/>
+                    <Border BorderBrush="#EEE" BorderThickness="1" Background="#F9F9F9" CornerRadius="3">
+                        <ListView x:Name="lstAttributes" Height="400" Background="Transparent" BorderThickness="0">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="属性项" DisplayMemberBinding="{Binding Key}" Width="100"/>
+                                    <GridViewColumn Header="属性值" DisplayMemberBinding="{Binding Value}" Width="150"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </Border>
                 </StackPanel>
             </Border>
         </Grid>
@@ -48,7 +73,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="350"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="坐标系: CGCS2000 / Gauss-Kruger 3度带" VerticalAlignment="Bottom" Margin="10" Foreground="#333"/>
+                <TextBlock x:Name="txtStatusBar" Text="坐标系: CGCS2000 / Gauss-Kruger 3度带" VerticalAlignment="Bottom" Margin="10" Foreground="#333"/>
 
                 <Border Grid.Column="1" Background="#F9F9F9" CornerRadius="5" Margin="5">
                     <ScrollViewer>
