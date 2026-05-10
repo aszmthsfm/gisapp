@@ -19,8 +19,14 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0" Text="武汉大学地图生产地理空间数据工程" Foreground="White" FontSize="20" FontWeight="Bold" Margin="15,0,0,0" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="15,0,0,0">
 
+                    <Image Source="Resources/whu_logo.png" Width="36" Height="36" Margin="0,0,12,0" 
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                    <TextBlock Text="武汉大学地图生产地理空间数据软件" Foreground="White" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+
+                </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,15,0">
                     <Button x:Name="BtnPan" Content="🖐 平移" Width="70" Height="32" Margin="5,0" Background="White" BorderThickness="0" Cursor="Hand" Click="BtnPan_Click"/>
                     <Button x:Name="BtnZoomIn" Content="🔍 放大" Width="70" Height="32" Margin="5,0" Background="White" BorderThickness="0" Cursor="Hand" Click="BtnZoomIn_Click"/>
@@ -45,26 +51,51 @@
                 <WindowsFormsHost x:Name="mapHost" />
             </Border>
 
-            <Border Grid.Column="2" Background="White" BorderBrush="#DDD" BorderThickness="1,0,0,0">
-                <StackPanel Margin="10">
-                    <TextBlock Text="查询条件" FontWeight="Bold" Margin="0,0,0,10"/>
-                    <TextBlock Text="建筑名称:"/>
-                    <TextBox x:Name="txtSearchName" Margin="0,5,0,10" Height="25" VerticalContentAlignment="Center"/>
-                    <Button x:Name="btnSearch" Content="查询" Background="#2B579A" Foreground="White" Height="30" BorderThickness="0" Cursor="Hand" Click="BtnSearch_Click"/>
+            <TabControl Grid.Column="2" Margin="5" Background="White" BorderBrush="#DDD">
 
-                    <TextBlock Text="详细信息" FontWeight="Bold" Margin="0,15,0,5"/>
-                    <Border BorderBrush="#EEE" BorderThickness="1" Background="#F9F9F9" CornerRadius="3">
-                        <ListView x:Name="lstAttributes" Height="400" Background="Transparent" BorderThickness="0">
-                            <ListView.View>
-                                <GridView>
-                                    <GridViewColumn Header="属性项" DisplayMemberBinding="{Binding Key}" Width="100"/>
-                                    <GridViewColumn Header="属性值" DisplayMemberBinding="{Binding Value}" Width="150"/>
-                                </GridView>
-                            </ListView.View>
-                        </ListView>
-                    </Border>
-                </StackPanel>
-            </Border>
+                <TabItem Header="属性查询" FontSize="14">
+                    <StackPanel Margin="10">
+                        <TextBlock Text="查询条件" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock Text="建筑名称:"/>
+                        <TextBox x:Name="txtSearchName" Margin="0,5,0,10" Height="25" VerticalContentAlignment="Center"/>
+                        <Button x:Name="btnSearch" Content="查询" Background="#2B579A" Foreground="White" Height="30" BorderThickness="0" Cursor="Hand" Click="BtnSearch_Click"/>
+
+                        <TextBlock Text="详细信息" FontWeight="Bold" Margin="0,15,0,5"/>
+                        <Border BorderBrush="#EEE" BorderThickness="1" Background="#F9F9F9" CornerRadius="3">
+                            <ListView x:Name="lstAttributes" Height="350" Background="Transparent" BorderThickness="0" SelectionChanged="lstAttributes_SelectionChanged">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="建筑名称" DisplayMemberBinding="{Binding Name}" Width="150"/>
+                                        <GridViewColumn Header="建筑类型" DisplayMemberBinding="{Binding Type}" Width="100"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </Border>
+                    </StackPanel>
+                </TabItem>
+
+                <TabItem Header="图层操作" FontSize="14">
+                    <StackPanel Margin="10">
+                        <TextBlock Text="图层状态" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock x:Name="txtSelectedLayer" Text="当前未选中图层 (请在左侧点击)" Foreground="Red" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                        <Button x:Name="btnOpenAttrTable" Content="📊 查看该图层属性表" Background="#4CAF50" Foreground="White" Height="35" BorderThickness="0" Cursor="Hand" Click="BtnOpenAttrTable_Click" Margin="0,0,0,20"/>
+
+                        <TextBlock Text="更改图层颜色" FontWeight="Bold" Margin="0,10,0,5"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,5">
+                            <TextBlock Text="R:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBox x:Name="txtR" Width="40" Text="255" VerticalContentAlignment="Center"/>
+                            <TextBlock Text="G:" VerticalAlignment="Center" Margin="10,0,5,0"/>
+                            <TextBox x:Name="txtG" Width="40" Text="0" VerticalContentAlignment="Center"/>
+                            <TextBlock Text="B:" VerticalAlignment="Center" Margin="10,0,5,0"/>
+                            <TextBox x:Name="txtB" Width="40" Text="0" VerticalContentAlignment="Center"/>
+                        </StackPanel>
+
+                        <Button x:Name="btnApplyColor" Content="🎨 应用颜色到该图层" Background="#FF9800" Foreground="White" Height="35" BorderThickness="0" Cursor="Hand" Click="BtnApplyColor_Click" Margin="0,15,0,0"/>
+                    </StackPanel>
+                </TabItem>
+
+            </TabControl>
         </Grid>
 
         <Border Grid.Row="2" Background="White" BorderBrush="#DDD" BorderThickness="0,1,0,0">
