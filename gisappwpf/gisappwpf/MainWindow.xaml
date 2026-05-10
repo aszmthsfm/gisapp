@@ -35,27 +35,124 @@
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0" Background="White" BorderBrush="#DDD" BorderThickness="0,0,1,0">
-                <WindowsFormsHost x:Name="tocHost" Margin="5" />
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#F4F7FB" BorderBrush="#DDD" BorderThickness="0,0,0,1" Padding="5">
+                        <Button x:Name="BtnAddShapefile" Content="➕ 导入 Shapefile" Background="White" BorderBrush="#CCC" 
+                                Height="30" Cursor="Hand" Click="BtnAddShapefile_Click"/>
+                    </Border>
+
+                    <ListBox x:Name="lstLayers" Grid.Row="1" Margin="5" BorderThickness="0" Background="Transparent"
+                             SelectionChanged="lstLayers_SelectionChanged" HorizontalContentAlignment="Stretch">
+
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="5"/>
+                                <Setter Property="Margin" Value="0,2"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="3">
+                                                <ContentPresenter />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background" Value="#E0E0E0"/>
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background" Value="#F5F5F5"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <CheckBox IsChecked="{Binding IsVisible}" VerticalAlignment="Center" Margin="0,0,8,0"
+                                              Click="LayerVisibility_Click" Tag="{Binding}"/>
+
+                                    <Grid Width="16" Height="16" Margin="0,0,8,0">
+                                        <Border Background="{Binding SymbolColor}" BorderBrush="#999" BorderThickness="1">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ShapeType}" Value="Polygon">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
+
+                                        <Rectangle Fill="{Binding SymbolColor}" Height="3" VerticalAlignment="Center">
+                                            <Rectangle.Style>
+                                                <Style TargetType="Rectangle">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ShapeType}" Value="Polyline">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Rectangle.Style>
+                                        </Rectangle>
+
+                                        <Ellipse Fill="{Binding SymbolColor}" Stroke="#999" StrokeThickness="1" Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Ellipse.Style>
+                                                <Style TargetType="Ellipse">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ShapeType}" Value="Point">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Ellipse.Style>
+                                        </Ellipse>
+                                    </Grid>
+
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="14" Foreground="#333"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+
+                    </ListBox>
+                </Grid>
             </Border>
 
-            <Grid Grid.Column="1" Margin="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+            <Grid Grid.Column="1" x:Name="mapGrid" Margin="2">
 
-                <Border Grid.Row="0" Background="White" BorderBrush="#DDD" BorderThickness="1,1,1,0" Padding="5">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button x:Name="BtnPan" Content="🖐 平移" Width="70" Height="30" Margin="5,0" Background="#F4F7FB" BorderThickness="1" BorderBrush="#CCC" Cursor="Hand" Click="BtnPan_Click"/>
-                        <Button x:Name="BtnZoomIn" Content="🔍 放大" Width="70" Height="30" Margin="5,0" Background="#F4F7FB" BorderThickness="1" BorderBrush="#CCC" Cursor="Hand" Click="BtnZoomIn_Click"/>
-                        <Button x:Name="BtnZoomOut" Content="🔎 缩小" Width="70" Height="30" Margin="5,0" Background="#F4F7FB" BorderThickness="1" BorderBrush="#CCC" Cursor="Hand" Click="BtnZoomOut_Click"/>
-                        <Button x:Name="BtnFullExtent" Content="🌍 全图" Width="70" Height="30" Margin="5,0" Background="#F4F7FB" BorderThickness="1" BorderBrush="#CCC" Cursor="Hand" Click="BtnFullExtent_Click"/>
-                    </StackPanel>
-                </Border>
-
-                <Border Grid.Row="1" Background="#E5E5E5" BorderBrush="#DDD" BorderThickness="1,0,1,1">
+                <Border Background="#E5E5E5" BorderBrush="#DDD" BorderThickness="1">
                     <WindowsFormsHost x:Name="mapHost" />
                 </Border>
+
+                <Popup x:Name="MapToolbarPopup" IsOpen="True" AllowsTransparency="True" StaysOpen="True" 
+                       PlacementTarget="{Binding ElementName=mapGrid}" Placement="Relative" 
+                       HorizontalOffset="20" VerticalOffset="20">
+
+                    <Border Background="#F4F7FB" BorderBrush="#CCC" BorderThickness="1" CornerRadius="5" Padding="5">
+                        <Border.Effect>
+                            <DropShadowEffect Color="Black" Opacity="0.2" BlurRadius="5" ShadowDepth="2"/>
+                        </Border.Effect>
+
+                        <StackPanel Orientation="Vertical">
+                            <Button x:Name="BtnPan" Content="🖐 平移" Width="70" Height="32" Margin="0,5" Background="White" BorderThickness="0" Cursor="Hand" Click="BtnPan_Click"/>
+                            <Button x:Name="BtnZoomIn" Content="🔍 放大" Width="70" Height="32" Margin="0,5" Background="White" BorderThickness="0" Cursor="Hand" Click="BtnZoomIn_Click"/>
+                            <Button x:Name="BtnZoomOut" Content="🔎 缩小" Width="70" Height="32" Margin="0,5" Background="White" BorderThickness="0" Cursor="Hand" Click="BtnZoomOut_Click"/>
+                            <Button x:Name="BtnFullExtent" Content="🌍 全图" Width="70" Height="32" Margin="0,5" Background="White" BorderThickness="0" Cursor="Hand" Click="BtnFullExtent_Click"/>
+                        </StackPanel>
+                    </Border>
+                </Popup>
             </Grid>
 
             <TabControl Grid.Column="2" Margin="5" Background="White" BorderBrush="#DDD">
