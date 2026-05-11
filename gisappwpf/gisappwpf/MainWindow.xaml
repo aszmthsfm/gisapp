@@ -59,23 +59,21 @@
 
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">
-                                <Setter Property="Padding" Value="5"/>
-                                <Setter Property="Margin" Value="0,2"/>
-                                <Setter Property="Cursor" Value="Hand"/>
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="ListBoxItem">
-                                            <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="3">
+                                            <Border x:Name="Bd" Background="{TemplateBinding Background}" 
+                            Padding="{TemplateBinding Padding}" CornerRadius="3">
+                                                <Border.ContextMenu>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="📊 查看属性表" Click="MenuItem_ViewAttributes_Click"/>
+                                                        <MenuItem Header="🎨 样式更改" Click="MenuItem_StyleChange_Click"/>
+                                                        <Separator />
+                                                        <MenuItem Header="🔍 缩放到图层" IsEnabled="False"/>
+                                                    </ContextMenu>
+                                                </Border.ContextMenu>
                                                 <ContentPresenter />
                                             </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsSelected" Value="True">
-                                                    <Setter TargetName="Bd" Property="Background" Value="#E0E0E0"/>
-                                                </Trigger>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="Bd" Property="Background" Value="#F5F5F5"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
                                         </ControlTemplate>
                                     </Setter.Value>
                                 </Setter>
@@ -187,26 +185,6 @@
                     </StackPanel>
                 </TabItem>
 
-                <TabItem Header="图层操作" FontSize="14">
-                    <StackPanel Margin="10">
-                        <TextBlock Text="图层状态" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <TextBlock x:Name="txtSelectedLayer" Text="当前未选中图层 (请在左侧点击)" Foreground="Red" FontWeight="Bold" Margin="0,0,0,15"/>
-
-                        <Button x:Name="btnOpenAttrTable" Content="📊 查看该图层属性表" Background="#4CAF50" Foreground="White" Height="35" BorderThickness="0" Cursor="Hand" Click="BtnOpenAttrTable_Click" Margin="0,0,0,20"/>
-
-                        <TextBlock Text="更改图层颜色" FontWeight="Bold" Margin="0,10,0,5"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,5">
-                            <TextBlock Text="R:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            <TextBox x:Name="txtR" Width="40" Text="255" VerticalContentAlignment="Center"/>
-                            <TextBlock Text="G:" VerticalAlignment="Center" Margin="10,0,5,0"/>
-                            <TextBox x:Name="txtG" Width="40" Text="0" VerticalContentAlignment="Center"/>
-                            <TextBlock Text="B:" VerticalAlignment="Center" Margin="10,0,5,0"/>
-                            <TextBox x:Name="txtB" Width="40" Text="0" VerticalContentAlignment="Center"/>
-                        </StackPanel>
-
-                        <Button x:Name="btnApplyColor" Content="🎨 应用颜色到该图层" Background="#FF9800" Foreground="White" Height="35" BorderThickness="0" Cursor="Hand" Click="BtnApplyColor_Click" Margin="0,15,0,0"/>
-                    </StackPanel>
-                </TabItem>
 
             </TabControl>
         </Grid>

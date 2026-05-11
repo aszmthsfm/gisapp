@@ -1,0 +1,17 @@
+﻿<Window x:Class="gisappwpf.ColorEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="更改符号颜色" Height="200" Width="250" WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="20">
+    <TextBlock Text="请设置 RGB 颜色值：" FontWeight="Bold" Margin="0,0,0,10"/>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5">
+      <TextBlock Text="R:" VerticalAlignment="Center"/>
+      <TextBox x:Name="txtR" Width="40" Margin="5,0,15,0" Text="255"/>
+      <TextBlock Text="G:" VerticalAlignment="Center"/>
+      <TextBox x:Name="txtG" Width="40" Margin="5,0,15,0" Text="0"/>
+      <TextBlock Text="B:" VerticalAlignment="Center"/>
+      <TextBox x:Name="txtB" Width="40" Margin="5,0,0,0" Text="0"/>
+    </StackPanel>
+    <Button Content="确认应用" Margin="0,20,0,0" Height="30" Click="BtnOk_Click"/>
+  </StackPanel>
+</Window>

@@ -272,8 +272,7 @@ namespace gisappwpf
 
                     // 5. 清理全局变量并重置右侧状态提示
                     _selectedLayer = null;
-                    txtSelectedLayer.Text = "当前未选中图层 (请在左侧点击)";
-                    txtSelectedLayer.Foreground = System.Windows.Media.Brushes.Red;
+                    
 
                     // 6. 刷新地图视图
                     axMapControl.ActiveView.Refresh();
@@ -414,62 +413,10 @@ namespace gisappwpf
             if (selectedItem != null)
             {
                 _selectedLayer = selectedItem.ArcGisLayer; // 赋值给全局变量
-                txtSelectedLayer.Text = "当前选中图层：" + _selectedLayer.Name;
-                txtSelectedLayer.Foreground = System.Windows.Media.Brushes.Green;
+                
             }
         }
 
-        private void BtnApplyColor_Click(object sender, RoutedEventArgs e)
-        {
-            if (_selectedLayer == null) { MessageBox.Show("请先点击选中图层"); return; }
-            try
-            {
-                int r = int.Parse(txtR.Text), g = int.Parse(txtG.Text), b = int.Parse(txtB.Text);
-                if (_selectedLayer.FeatureClass.ShapeType == esriGeometryType.esriGeometryPolygon)
-                    GisStyleHelper.SetPolygonSymbol(_selectedLayer, r, g, b);
-                else
-                    GisStyleHelper.SetLineSymbol(_selectedLayer, r, g, b);
-
-                axMapControl.ActiveView.PartialRefresh(esriViewDrawPhase.esriViewGeography, _selectedLayer, null);
-               
-            }
-            catch { MessageBox.Show("RGB输入无效"); }
-        }
-
-        private void BtnOpenAttrTable_Click(object sender, RoutedEventArgs e)
-        {
-            if (_selectedLayer == null) return;
-            try
-            {
-                DataTable dt = new DataTable();
-                IFeatureClass fc = _selectedLayer.FeatureClass;
-                for (int i = 0; i < fc.Fields.FieldCount; i++)
-                    if (fc.Fields.get_Field(i).Type != esriFieldType.esriFieldTypeGeometry)
-                        dt.Columns.Add(fc.Fields.get_Field(i).Name);
-
-                IFeatureCursor cursor = fc.Search(null, false);
-                IFeature feature;
-                while ((feature = cursor.NextFeature()) != null)
-                {
-                    DataRow row = dt.NewRow();
-                    for (int i = 0; i < fc.Fields.FieldCount; i++)
-                    {
-                        if (fc.Fields.get_Field(i).Type != esriFieldType.esriFieldTypeGeometry)
-                        {
-                            object val = feature.get_Value(i);
-                            row[fc.Fields.get_Field(i).Name] = (val == null || Convert.IsDBNull(val)) ? "" : val.ToString();
-                        }
-                    }
-                    dt.Rows.Add(row);
-                }
-                System.Runtime.InteropServices.Marshal.ReleaseComObject(cursor);
-
-                Window tableWin = new Window { Title = "属性表: " + _selectedLayer.Name, Width = 800, Height = 500 };
-                tableWin.Content = new DataGrid { ItemsSource = dt.DefaultView, IsReadOnly = true };
-                tableWin.Show();
-            }
-            catch (Exception ex) { MessageBox.Show(ex.Message); }
-        }
 
         // ==================== 选项卡：属性查询与联动业务 ====================
         private void BtnSearch_Click(object sender, RoutedEventArgs e)
@@ -545,5 +492,102 @@ namespace gisappwpf
             }
             catch (Exception ex) { MessageBox.Show(ex.Message); }
         }
+
+        // ==================== 右键菜单：查看属性表 ====================
+        private void MenuItem_ViewAttributes_Click(object sender, RoutedEventArgs e)
+        {
+            // 1. 获取触发右键菜单的图层对象
+            LayerItem item = GetLayerItemFromMenuItem(sender);
+            if (item == null || item.ArcGisLayer == null) return;
+
+            try
+            {
+                // 2. 构建属性表数据
+                DataTable dt = new DataTable();
+                var fc = item.ArcGisLayer.FeatureClass;
+                for (int i = 0; i < fc.Fields.FieldCount; i++)
+                {
+                    var field = fc.Fields.get_Field(i);
+                    if (field.Type != ESRI.ArcGIS.Geodatabase.esriFieldType.esriFieldTypeGeometry)
+                        dt.Columns.Add(field.Name);
+                }
+
+                var cursor = fc.Search(null, false);
+                ESRI.ArcGIS.Geodatabase.IFeature feature;
+                while ((feature = cursor.NextFeature()) != null)
+                {
+                    DataRow row = dt.NewRow();
+                    for (int i = 0; i < fc.Fields.FieldCount; i++)
+                    {
+                        if (fc.Fields.get_Field(i).Type != ESRI.ArcGIS.Geodatabase.esriFieldType.esriFieldTypeGeometry)
+                        {
+                            object val = feature.get_Value(i);
+                            row[fc.Fields.get_Field(i).Name] = (val == null || Convert.IsDBNull(val)) ? "" : val.ToString();
+                        }
+                    }
+                    dt.Rows.Add(row);
+                }
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(cursor);
+
+                // 3. 弹出新窗口显示
+                Window tableWin = new Window { Title = "属性表: " + item.Name, Width = 800, Height = 500 };
+                tableWin.Content = new DataGrid { ItemsSource = dt.DefaultView, IsReadOnly = true };
+                tableWin.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("打开属性表失败: " + ex.Message);
+            }
+        }
+
+        // ==================== 右键菜单：样式更改 ====================
+        private void MenuItem_StyleChange_Click(object sender, RoutedEventArgs e)
+        {
+            // 1. 获取对应的图层项
+            LayerItem item = GetLayerItemFromMenuItem(sender);
+            if (item == null || item.ArcGisLayer == null) return;
+
+            // 2. 获取当前颜色并弹出选择窗口
+            System.Windows.Media.Color current = item.SymbolColor.Color;
+            ColorEditWindow colorWin = new ColorEditWindow(current.R, current.G, current.B);
+            colorWin.Owner = this;
+
+            if (colorWin.ShowDialog() == true)
+            {
+                try
+                {
+                    // 3. 修改 ArcGIS 图层样式
+                    if (item.ArcGisLayer.FeatureClass.ShapeType == ESRI.ArcGIS.Geometry.esriGeometryType.esriGeometryPolygon)
+                        GisStyleHelper.SetPolygonSymbol(item.ArcGisLayer, colorWin.R, colorWin.G, colorWin.B);
+                    else
+                        GisStyleHelper.SetLineSymbol(item.ArcGisLayer, colorWin.R, colorWin.G, colorWin.B);
+
+                    // 4. 同步更新预览色块
+                    item.SymbolColor = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb((byte)colorWin.R, (byte)colorWin.G, (byte)colorWin.B));
+
+                    // 5. 刷新地图
+                    axMapControl.ActiveView.PartialRefresh(ESRI.ArcGIS.Carto.esriViewDrawPhase.esriViewGeography, item.ArcGisLayer, null);
+                }
+                catch (Exception ex) { MessageBox.Show("样式应用失败: " + ex.Message); }
+            }
+        }
+
+        // ==================== 辅助方法：获取右键点击的图层数据 ====================
+        private LayerItem GetLayerItemFromMenuItem(object sender)
+        {
+            MenuItem mi = sender as MenuItem;
+            if (mi == null) return null;
+
+            ContextMenu cm = mi.Parent as ContextMenu;
+            if (cm == null) return null;
+
+            System.Windows.FrameworkElement target = cm.PlacementTarget as System.Windows.FrameworkElement;
+            if (target == null) return null;
+
+            // 返回数据上下文
+            return target.DataContext as LayerItem;
+        }
+       
     }
 }
