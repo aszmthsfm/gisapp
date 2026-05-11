@@ -65,12 +65,10 @@ namespace gisappwpf
             axMapControl = new AxMapControl();
            
             mapHost.Child = axMapControl;
-           
-       
 
             try
             {
-                // 2. 【解耦体现】：直接呼叫数据库助手获取连接
+                // 2. 【解耦】：直接呼叫数据库助手获取连接
                 IFeatureWorkspace featureWorkspace = GisDbHelper.GetFeatureWorkspace();
 
                 // 3. 批量加载图层 (利用 GisStyleHelper 进行美化渲染)
@@ -161,8 +159,9 @@ namespace gisappwpf
                 axMapControl.ActiveView.Refresh();
 
                 axMapControl.OnMouseMove += AxMapControl_OnMouseMove;
-                
 
+                cmbQueryLayers.ItemsSource = lstLayers.Items;
+                if (cmbQueryLayers.Items.Count > 0) cmbQueryLayers.SelectedIndex = 0;
                
             }
             catch (Exception ex)
@@ -418,81 +417,119 @@ namespace gisappwpf
         }
 
 
-        // ==================== 选项卡：属性查询与联动业务 ====================
-        private void BtnSearch_Click(object sender, RoutedEventArgs e)
+        // ==================== 呼出 SQL 查询构建器并执行 ====================
+        private void btnOpenAdvancedQuery_Click(object sender, RoutedEventArgs e)
         {
-            string searchText = txtSearchName.Text.Trim();
-            if (string.IsNullOrEmpty(searchText)) return;
+            // 1. 实例化我们刚才写的新窗口，并传入左侧所有的图层列表
+            AttributeQueryWindow queryWindow = new AttributeQueryWindow(lstLayers.Items);
+            queryWindow.Owner = this;
 
-            try
+            // 2. 如果用户在窗口里点击了“查找”
+            if (queryWindow.ShowDialog() == true)
             {
-                IFeatureLayer buildingLayer = null;
-                for (int i = 0; i < axMapControl.LayerCount; i++)
-                    if (axMapControl.get_Layer(i).Name == "校园建筑") { buildingLayer = (IFeatureLayer)axMapControl.get_Layer(i); break; }
+                // 获取用户构建的条件
+                LayerItem targetLayerItem = queryWindow.SelectedLayer;
+                string whereClause = queryWindow.WhereClause;
 
-                if (buildingLayer == null) return;
+                IFeatureLayer targetLayer = targetLayerItem.ArcGisLayer;
+                IQueryFilter qf = new QueryFilterClass(); // 注意加 Class
+                qf.WhereClause = whereClause;
 
-                IQueryFilter qf = new QueryFilter();
-                qf.WhereClause = string.Format("name LIKE '%{0}%'", searchText);
-
-                IFeatureSelection fs = (IFeatureSelection)buildingLayer;
-                axMapControl.Map.ClearSelection();
-                ((IGraphicsContainer)axMapControl.Map).DeleteAllElements();
-                fs.SelectFeatures(qf, esriSelectionResultEnum.esriSelectionResultNew, false);
-
-                lstAttributes.Items.Clear();
-                IEnumFeature enumFeat = (IEnumFeature)axMapControl.Map.FeatureSelection;
-                IFeature feat;
-                IEnvelope fullEnv = null;
-
-                while ((feat = enumFeat.Next()) != null)
+                try
                 {
-                    string nameStr = "未知", typeStr = "无";
-                    int nIdx = feat.Fields.FindField("name"), tIdx = feat.Fields.FindField("type");
-                    if (nIdx >= 0 && !Convert.IsDBNull(feat.get_Value(nIdx))) nameStr = feat.get_Value(nIdx).ToString();
-                    if (tIdx >= 0 && !Convert.IsDBNull(feat.get_Value(tIdx))) typeStr = feat.get_Value(tIdx).ToString();
+                    // 3. 在地图上执行选择
+                    IFeatureSelection featureSelection = (IFeatureSelection)targetLayer;
+                    axMapControl.Map.ClearSelection();
+                    featureSelection.SelectFeatures(qf, esriSelectionResultEnum.esriSelectionResultNew, false);
 
-                    lstAttributes.Items.Add(new SearchResultItem { OID = feat.OID, Name = nameStr, Type = typeStr });
+                    // 4. ========== 动态构建 DataTable 并展示到 DataGrid ==========
+                    DataTable dt = new DataTable();
+                    IFeatureClass fc = targetLayer.FeatureClass;
 
-                    if (fullEnv == null) fullEnv = feat.Shape.Envelope; else fullEnv.Union(feat.Shape.Envelope);
+                    for (int i = 0; i < fc.Fields.FieldCount; i++)
+                    {
+                        IField field = fc.Fields.get_Field(i);
+                        if (field.Type != esriFieldType.esriFieldTypeGeometry)
+                            dt.Columns.Add(field.Name);
+                    }
+
+                    ISelectionSet selectionSet = featureSelection.SelectionSet;
+                    ICursor cursor;
+                    selectionSet.Search(null, false, out cursor);
+                    IFeatureCursor featCursor = cursor as IFeatureCursor;
+                    IFeature feature;
+
+                    IEnvelope fullEnv = new EnvelopeClass(); // 注意加 Class
+
+                    while ((feature = featCursor.NextFeature()) != null)
+                    {
+                        DataRow row = dt.NewRow();
+                        for (int i = 0; i < fc.Fields.FieldCount; i++)
+                        {
+                            IField field = fc.Fields.get_Field(i);
+                            if (field.Type != esriFieldType.esriFieldTypeGeometry)
+                            {
+                                object val = feature.get_Value(i);
+                                row[field.Name] = (val == null || Convert.IsDBNull(val)) ? "" : val.ToString();
+                            }
+                        }
+                        dt.Rows.Add(row);
+                        fullEnv.Union(feature.Shape.Envelope);
+                    }
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(cursor);
+
+                    // 5. 绑定表格并缩放地图
+                    dgSearchResults.ItemsSource = dt.DefaultView;
+
+                    if (!fullEnv.IsEmpty)
+                    {
+                        fullEnv.Expand(1.5, 1.5, true);
+                        axMapControl.Extent = fullEnv;
+                    }
+                    axMapControl.ActiveView.PartialRefresh(esriViewDrawPhase.esriViewGeoSelection, null, null);
+                    axMapControl.ActiveView.Refresh();
+
+                    MessageBox.Show("查询完成，共找到 " + dt.Rows.Count + " 条记录。", "统计", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
-
-                if (fullEnv != null) { fullEnv.Expand(1.5, 1.5, true); axMapControl.Extent = fullEnv; axMapControl.ActiveView.Refresh(); }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("查询失败！可能是 SQL 语法有误。\n\n详细报错：" + ex.Message,
+                                    "查询异常", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
-            catch (Exception ex) { MessageBox.Show(ex.Message); }
         }
 
-        private void lstAttributes_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        // ==================== 表格点击联动地图高亮 ====================
+        private void dgSearchResults_SelectionChanged(object sender, SelectionChangedEventArgs e)
+{
+    // 当用户点击 DataGrid 中的某一行时，缩放并居中该要素
+    if (dgSearchResults.SelectedItem == null) return;
+    
+    DataRowView rowView = dgSearchResults.SelectedItem as DataRowView;
+    if (rowView == null) return;
+
+    LayerItem selectedItem = cmbQueryLayers.SelectedItem as LayerItem;
+    if (selectedItem == null || selectedItem.ArcGisLayer == null) return;
+
+    try
+    {
+        // 假设图层一定有 OID 字段 (objectid 或 fid)
+        string oidFieldName = selectedItem.ArcGisLayer.FeatureClass.OIDFieldName;
+        int oid = Convert.ToInt32(rowView[oidFieldName]);
+
+        IFeature feature = selectedItem.ArcGisLayer.FeatureClass.GetFeature(oid);
+        if (feature != null)
         {
-            if (lstAttributes.SelectedItem == null) return;
-            SearchResultItem item = (SearchResultItem)lstAttributes.SelectedItem;
-
-            try
-            {
-                IFeatureLayer buildingLayer = null;
-                for (int i = 0; i < axMapControl.LayerCount; i++)
-                    if (axMapControl.get_Layer(i).Name == "校园建筑") { buildingLayer = (IFeatureLayer)axMapControl.get_Layer(i); break; }
-
-                IFeature feat = buildingLayer.FeatureClass.GetFeature(item.OID);
-                IGraphicsContainer gc = (IGraphicsContainer)axMapControl.Map;
-                gc.DeleteAllElements();
-
-                IRgbColor red = new RgbColor(); red.Red = 255;
-                ISimpleLineSymbol sls = new SimpleLineSymbol(); sls.Color = red; sls.Width = 3;
-                ISimpleFillSymbol sfs = new SimpleFillSymbol(); sfs.Outline = sls;
-                IRgbColor trans = new RgbColor(); trans.NullColor = true; sfs.Color = trans;
-
-                IElement el = new RectangleElement(); el.Geometry = feat.Shape.Envelope;
-                ((IFillShapeElement)el).Symbol = sfs;
-                gc.AddElement(el, 0);
-
-                IEnvelope env = feat.Shape.Envelope; env.Expand(2, 2, true);
-                axMapControl.Extent = env;
-                axMapControl.ActiveView.PartialRefresh(esriViewDrawPhase.esriViewGraphics, null, null);
-            }
-            catch (Exception ex) { MessageBox.Show(ex.Message); }
+            IEnvelope env = feature.Shape.Envelope;
+            env.Expand(2.0, 2.0, true);
+            axMapControl.Extent = env;
+            
+            // 让该要素闪烁一下 (需要引用 ESRI.ArcGIS.Controls)
+            axMapControl.FlashShape(feature.Shape, 3, 200, null);
         }
-
+    }
+    catch { /* 忽略点击无法获取几何的异常 */ }
+}
         // ==================== 右键菜单：查看属性表 ====================
         private void MenuItem_ViewAttributes_Click(object sender, RoutedEventArgs e)
         {
@@ -588,6 +625,7 @@ namespace gisappwpf
             // 返回数据上下文
             return target.DataContext as LayerItem;
         }
+
        
     }
 }

@@ -165,22 +165,22 @@
 
                 <TabItem Header="属性查询" FontSize="14">
                     <StackPanel Margin="10">
-                        <TextBlock Text="查询条件" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <TextBlock Text="建筑名称:"/>
-                        <TextBox x:Name="txtSearchName" Margin="0,5,0,10" Height="25" VerticalContentAlignment="Center"/>
+                        <TextBlock Text="1. 选择查询图层:" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <ComboBox x:Name="cmbQueryLayers" DisplayMemberPath="Name" Height="28" Margin="0,0,0,15" Background="White"/>
 
-                        <Button x:Name="btnSearch" Content="查询" Background="#005A3C" Foreground="White" Height="30" BorderThickness="0" Cursor="Hand" Click="BtnSearch_Click"/>
+                        <TextBlock Text="2. 设置查询条件:" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                            <Button x:Name="btnOpenAdvancedQuery" Content="⚙️ 打开高级 SQL 查询构建器" 
+            Background="#005A3C" Foreground="White" Height="30" Width="200" 
+            BorderThickness="0" Cursor="Hand" Click="btnOpenAdvancedQuery_Click"/>
+                        </StackPanel>
 
-                        <TextBlock Text="详细信息" FontWeight="Bold" Margin="0,15,0,5"/>
-                        <Border BorderBrush="#EEE" BorderThickness="1" Background="#F9F9F9" CornerRadius="3">
-                            <ListView x:Name="lstAttributes" Height="350" Background="Transparent" BorderThickness="0" SelectionChanged="lstAttributes_SelectionChanged">
-                                <ListView.View>
-                                    <GridView>
-                                        <GridViewColumn Header="建筑名称" DisplayMemberBinding="{Binding Name}" Width="150"/>
-                                        <GridViewColumn Header="建筑类型" DisplayMemberBinding="{Binding Type}" Width="100"/>
-                                    </GridView>
-                                </ListView.View>
-                            </ListView>
+                        <TextBlock Text="3. 查询结果 (点击列表高亮地图):" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="3">
+                            <DataGrid x:Name="dgSearchResults" Height="380" AutoGenerateColumns="True" IsReadOnly="True" 
+                      Background="White" HeadersVisibility="Column" SelectionMode="Single"
+                      SelectionChanged="dgSearchResults_SelectionChanged"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
                         </Border>
                     </StackPanel>
                 </TabItem>
