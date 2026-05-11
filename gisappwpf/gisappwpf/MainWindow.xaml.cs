@@ -247,6 +247,77 @@ namespace gisappwpf
             }
         }
 
+        // ==================== 移除选中图层 ====================
+        private void BtnRemoveLayer_Click(object sender, RoutedEventArgs e)
+        {
+            // 1. 校验是否选中了图层
+            if (lstLayers.SelectedItem == null || _selectedLayer == null)
+            {
+                MessageBox.Show("请先在下方列表中选中要移除的图层！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // 2. 二次确认提示 (去掉了 $，改用普通的 + 号拼接字符串)
+            MessageBoxResult result = MessageBox.Show("确定要移除图层 [" + _selectedLayer.Name + "] 吗？", "确认移除", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    // 3. 从底层 ArcGIS 地图容器中移除该图层
+                    axMapControl.Map.DeleteLayer(_selectedLayer);
+
+                    // 4. 从左侧 WPF 自定义的图层列表中移除
+                    lstLayers.Items.Remove(lstLayers.SelectedItem);
+
+                    // 5. 清理全局变量并重置右侧状态提示
+                    _selectedLayer = null;
+                    txtSelectedLayer.Text = "当前未选中图层 (请在左侧点击)";
+                    txtSelectedLayer.Foreground = System.Windows.Media.Brushes.Red;
+
+                    // 6. 刷新地图视图
+                    axMapControl.ActiveView.Refresh();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("移除图层失败：" + ex.Message, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        // ==================== 导出地图 ====================
+        private void BtnExportMap_Click(object sender, RoutedEventArgs e)
+{
+    SaveFileDialog saveFileDialog = new SaveFileDialog();
+    saveFileDialog.Title = "导出地图";
+    // 支持你之前在 Helper 中写好的三种格式
+    saveFileDialog.Filter = "PNG 图片 (*.png)|*.png|JPEG 图片 (*.jpg)|*.jpg|PDF 文档 (*.pdf)|*.pdf";
+    saveFileDialog.FileName = "导出的地图";
+
+    if (saveFileDialog.ShowDialog() == true)
+    {
+        try
+        {
+            // 改变鼠标指针为等待状态（导出高分辨率图片可能需要几秒）
+            System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
+
+            // 调用已经封装好的导出辅助类方法
+            GisExportHelper.ExportMapToDocument(axMapControl.Map, saveFileDialog.FileName);
+
+            MessageBox.Show("地图导出成功！\n保存路径：" + saveFileDialog.FileName, "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("导出地图失败：" + ex.Message, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            // 恢复正常鼠标指针
+            System.Windows.Input.Mouse.OverrideCursor = null;
+        }
+    }
+}
+
 
         // ==================== 顶部工具栏交互 ====================
 

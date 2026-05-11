@@ -42,8 +42,16 @@
                     </Grid.RowDefinitions>
 
                     <Border Grid.Row="0" Background="#F4F7FB" BorderBrush="#DDD" BorderThickness="0,0,0,1" Padding="5">
-                        <Button x:Name="BtnAddShapefile" Content="➕ 导入 Shapefile" Background="White" BorderBrush="#CCC" 
-                                Height="30" Cursor="Hand" Click="BtnAddShapefile_Click"/>
+                        <StackPanel Orientation="Vertical">
+                            <Button x:Name="BtnAddShapefile" Content="➕ 导入 Shapefile" Background="White" BorderBrush="#CCC" 
+                Height="30" Cursor="Hand" Click="BtnAddShapefile_Click" Margin="0,0,0,5"/>
+
+                            <Button x:Name="BtnRemoveLayer" Content="➖ 移除选中图层" Background="White" BorderBrush="#CCC" 
+                Height="30" Cursor="Hand" Click="BtnRemoveLayer_Click" Margin="0,0,0,5"/>
+
+                            <Button x:Name="BtnExportMap" Content="💾 导出地图" Background="White" BorderBrush="#CCC" 
+                Height="30" Cursor="Hand" Click="BtnExportMap_Click"/>
+                        </StackPanel>
                     </Border>
 
                     <ListBox x:Name="lstLayers" Grid.Row="1" Margin="5" BorderThickness="0" Background="Transparent"
