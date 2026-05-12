@@ -656,14 +656,24 @@ namespace gisappwpf
 
         private void btnClearSelect_Click(object sender, RoutedEventArgs e)
         {
+            // 1. 重置交互状态和鼠标指针
             _currentMapAction = "None";
             axMapControl.MousePointer = esriControlsMousePointer.esriPointerDefault;
 
-            // 清除地图上的所有高亮选择
+            // 2. 清除所有图层的要素选中状态 (青色高亮)
             axMapControl.Map.ClearSelection();
-            axMapControl.ActiveView.PartialRefresh(esriViewDrawPhase.esriViewGeoSelection, null, null);
 
-            // 清空数据表格
+            // 3. 【关键修复】清除地图上可能残留的任何临时绘制图形 (Graphic Elements)
+            IGraphicsContainer gc = axMapControl.Map as IGraphicsContainer;
+            if (gc != null)
+            {
+                gc.DeleteAllElements();
+            }
+
+            // 4. 【关键修复】放弃 PartialRefresh，使用最彻底的全局刷新，强制重绘地图
+            axMapControl.ActiveView.Refresh();
+
+            // 5. 清空右侧的属性数据表格
             dgSearchResults.ItemsSource = null;
         }
 
@@ -769,7 +779,149 @@ namespace gisappwpf
             }
         }
 
+        // ==================== 呼出“按位置选择”工具并执行 ====================
+        private void btnOpenSpatialQuery_Click(object sender, RoutedEventArgs e)
+        {
+            // 1. 实例化弹窗，传入左侧图层列表
+            SelectByLocationWindow spatialWin = new SelectByLocationWindow(lstLayers.Items);
+            spatialWin.Owner = this;
 
+            // 2. 接收弹窗返回的参数
+            if (spatialWin.ShowDialog() == true)
+            {
+                LayerItem targetItem = spatialWin.TargetLayer;
+                LayerItem sourceItem = spatialWin.SourceLayer;
+                string method = spatialWin.SpatialMethod;
+                double distance = spatialWin.BufferDistance;
+
+                IFeatureLayer targetLayer = targetItem.ArcGisLayer;
+                IFeatureLayer sourceLayer = sourceItem.ArcGisLayer;
+
+                try
+                {
+                    // 数据量大时合并图形需要一点时间，让鼠标转个圈
+                    System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
+
+                    // 3. 【核心】提取源图层的所有几何图形，并合并成一个“大模具”
+                    IGeometry sourceGeometry = GetLayerUnionGeometry(sourceLayer);
+                    if (sourceGeometry == null || sourceGeometry.IsEmpty)
+                    {
+                        MessageBox.Show("源图层中没有有效要素，无法作为参考范围！");
+                        return;
+                    }
+
+                    // 4. 【核心】如果是距离查询，执行 Buffer (缓冲区) 拓扑分析
+                    if (method == "Distance" && distance > 0)
+                    {
+                        ITopologicalOperator topoOp = sourceGeometry as ITopologicalOperator;
+                        // 注意：因为你的地图坐标系是 CGCS2000 高斯克吕格投影，这里的单位天然就是“米”！
+                        sourceGeometry = topoOp.Buffer(distance); 
+                    }
+
+                    // 5. 构建空间过滤器 (ISpatialFilter)
+                    ISpatialFilter spatialFilter = new SpatialFilterClass();
+                    spatialFilter.Geometry = sourceGeometry;
+                    
+                    // 将下拉框的字符串映射为 ArcGIS 底层的空间关系枚举
+                    switch (method)
+                    {
+                        case "Intersects": spatialFilter.SpatialRel = esriSpatialRelEnum.esriSpatialRelIntersects; break;
+                        case "Contains":   spatialFilter.SpatialRel = esriSpatialRelEnum.esriSpatialRelContains; break;
+                        case "Within":     spatialFilter.SpatialRel = esriSpatialRelEnum.esriSpatialRelWithin; break;
+                        case "Distance":   spatialFilter.SpatialRel = esriSpatialRelEnum.esriSpatialRelIntersects; break; // 缓冲后只要相交就算在距离内
+                    }
+
+                    // 6. 在目标图层上执行选择
+                    IFeatureSelection featureSelection = (IFeatureSelection)targetLayer;
+                    axMapControl.Map.ClearSelection();
+                    featureSelection.SelectFeatures(spatialFilter, esriSelectionResultEnum.esriSelectionResultNew, false);
+
+                    // 7. ========== 动态构建结果表格 (复用你写过的逻辑) ==========
+                    DataTable dt = new DataTable();
+                    IFeatureClass fc = targetLayer.FeatureClass;
+
+                    for (int i = 0; i < fc.Fields.FieldCount; i++)
+                    {
+                        IField field = fc.Fields.get_Field(i);
+                        if (field.Type != esriFieldType.esriFieldTypeGeometry)
+                            dt.Columns.Add(field.Name);
+                    }
+
+                    ISelectionSet selectionSet = featureSelection.SelectionSet;
+                    ICursor cursor;
+                    selectionSet.Search(null, false, out cursor);
+                    IFeatureCursor featCursor = cursor as IFeatureCursor;
+                    IFeature feature;
+
+                    IEnvelope fullEnv = new EnvelopeClass(); 
+
+                    while ((feature = featCursor.NextFeature()) != null)
+                    {
+                        DataRow row = dt.NewRow();
+                        for (int i = 0; i < fc.Fields.FieldCount; i++)
+                        {
+                            IField field = fc.Fields.get_Field(i);
+                            if (field.Type != esriFieldType.esriFieldTypeGeometry)
+                            {
+                                object val = feature.get_Value(i);
+                                row[field.Name] = (val == null || Convert.IsDBNull(val)) ? "" : val.ToString();
+                            }
+                        }
+                        dt.Rows.Add(row);
+                        fullEnv.Union(feature.Shape.Envelope);
+                    }
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(cursor);
+
+                    // 8. 绑定表格并缩放地图
+                    dgSearchResults.ItemsSource = dt.DefaultView;
+
+                    if (!fullEnv.IsEmpty)
+                    {
+                        fullEnv.Expand(1.5, 1.5, true);
+                        axMapControl.Extent = fullEnv;
+                    }
+                    
+                    // 彻底刷新地图高亮
+                    axMapControl.ActiveView.PartialRefresh(esriViewDrawPhase.esriViewGeoSelection, null, null);
+                    axMapControl.ActiveView.Refresh();
+
+                    MessageBox.Show("空间分析完成！\n共找到 " + dt.Rows.Count + " 个符合拓扑关系的要素。", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("按位置选择执行失败，可能是几何体运算异常。\n详细信息: " + ex.Message, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                finally
+                {
+                    // 无论成功失败，恢复鼠标指针
+                    System.Windows.Input.Mouse.OverrideCursor = null; 
+                }
+            }
+        }
+
+        // ==================== 辅助方法：把图层里的所有碎块融合成一个大图形 ====================
+        private IGeometry GetLayerUnionGeometry(IFeatureLayer layer)
+        {
+            IGeometry searchGeom = null;
+            IFeatureCursor cursor = layer.FeatureClass.Search(null, false);
+            IFeature feature;
+            
+            while ((feature = cursor.NextFeature()) != null)
+            {
+                if (searchGeom == null)
+                {
+                    searchGeom = feature.ShapeCopy;
+                }
+                else
+                {
+                    // 使用 ITopologicalOperator 接口进行空间融合 (Union)
+                    ITopologicalOperator topoOp = searchGeom as ITopologicalOperator;
+                    searchGeom = topoOp.Union(feature.ShapeCopy);
+                }
+            }
+            System.Runtime.InteropServices.Marshal.ReleaseComObject(cursor);
+            return searchGeom;
+        }
        
     }
 }

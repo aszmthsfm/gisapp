@@ -186,6 +186,11 @@
                             <Button x:Name="btnDrawRect" Content="⬜ 矩形框选" Height="28" Padding="8,0" Margin="0,0,8,8" Cursor="Hand" Click="btnDrawRect_Click"/>
                             <Button x:Name="btnDrawPolygon" Content="🛑 多边形框选" Height="28" Padding="8,0" Margin="0,0,8,8" Cursor="Hand" Click="btnDrawPolygon_Click"/>
                             <Button x:Name="btnClearSelect" Content="❌ 清除选择" Height="28" Padding="8,0" Margin="0,0,0,8" Cursor="Hand" Click="btnClearSelect_Click"/>
+
+                            <Button x:Name="btnOpenSpatialQuery" Content="🗺️ 打开按位置选择工具" 
+            Height="30" Width="200" Padding="8,0" Margin="0,8,0,0"
+            Background="#005A3C" Foreground="White" BorderThickness="0"
+            Cursor="Hand" Click="btnOpenSpatialQuery_Click"/>
                         </WrapPanel>
                         <TextBlock Text="4. 查询结果 (点击列表高亮地图):" FontWeight="Bold" Margin="0,0,0,5"/>
                         <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="3">
