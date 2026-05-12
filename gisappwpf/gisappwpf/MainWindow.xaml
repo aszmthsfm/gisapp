@@ -57,28 +57,34 @@
                     <ListBox x:Name="lstLayers" Grid.Row="1" Margin="5" BorderThickness="0" Background="Transparent"
                              SelectionChanged="lstLayers_SelectionChanged" HorizontalContentAlignment="Stretch">
 
-                        <ListBox.ItemContainerStyle>
-                            <Style TargetType="ListBoxItem">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="ListBoxItem">
-                                            <Border x:Name="Bd" Background="{TemplateBinding Background}" 
-                            Padding="{TemplateBinding Padding}" CornerRadius="3">
-                                                <Border.ContextMenu>
-                                                    <ContextMenu>
-                                                        <MenuItem Header="📊 查看属性表" Click="MenuItem_ViewAttributes_Click"/>
-                                                        <MenuItem Header="🎨 样式更改" Click="MenuItem_StyleChange_Click"/>
-                                                        <Separator />
-                                                        <MenuItem Header="🔍 缩放到图层" IsEnabled="False"/>
-                                                    </ContextMenu>
-                                                </Border.ContextMenu>
-                                                <ContentPresenter />
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="Bd" Background="Transparent" Padding="{TemplateBinding Padding}" CornerRadius="3">
+                                            <Border.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="📊 查看属性表" Click="MenuItem_ViewAttributes_Click"/>
+                                                    <MenuItem Header="🎨 样式更改" Click="MenuItem_StyleChange_Click"/>
+                                                    <Separator />
+                                                    <MenuItem Header="🔍 缩放到图层" IsEnabled="False"/>
+                                                </ContextMenu>
+                                            </Border.ContextMenu>
+                                            <ContentPresenter />
+                                        </Border>
+
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#F0F5F9"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#D6E4F0"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
 
                         <ListBox.ItemTemplate>
                             <DataTemplate>
@@ -163,21 +169,27 @@
 
             <TabControl Grid.Column="2" Margin="5" Background="White" BorderBrush="#DDD">
 
-                <TabItem Header="属性查询" FontSize="14">
+                <TabItem Header="数据查询" FontSize="14">
                     <StackPanel Margin="10">
                         <TextBlock Text="1. 选择查询图层:" FontWeight="Bold" Margin="0,0,0,5"/>
                         <ComboBox x:Name="cmbQueryLayers" DisplayMemberPath="Name" Height="28" Margin="0,0,0,15" Background="White"/>
 
-                        <TextBlock Text="2. 设置查询条件:" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <TextBlock Text="2. 属性查询 (按字段找):" FontWeight="Bold" Margin="0,0,0,5"/>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                             <Button x:Name="btnOpenAdvancedQuery" Content="⚙️ 打开高级 SQL 查询构建器" 
-            Background="#005A3C" Foreground="White" Height="30" Width="200" 
-            BorderThickness="0" Cursor="Hand" Click="btnOpenAdvancedQuery_Click"/>
+                    Background="#005A3C" Foreground="White" Height="30" Width="200" 
+                    BorderThickness="0" Cursor="Hand" Click="btnOpenAdvancedQuery_Click"/>
                         </StackPanel>
 
-                        <TextBlock Text="3. 查询结果 (点击列表高亮地图):" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <TextBlock Text="3. 空间查询 (在地图上画):" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <WrapPanel Margin="0,0,0,15">
+                            <Button x:Name="btnDrawRect" Content="⬜ 矩形框选" Height="28" Padding="8,0" Margin="0,0,8,8" Cursor="Hand" Click="btnDrawRect_Click"/>
+                            <Button x:Name="btnDrawPolygon" Content="🛑 多边形框选" Height="28" Padding="8,0" Margin="0,0,8,8" Cursor="Hand" Click="btnDrawPolygon_Click"/>
+                            <Button x:Name="btnClearSelect" Content="❌ 清除选择" Height="28" Padding="8,0" Margin="0,0,0,8" Cursor="Hand" Click="btnClearSelect_Click"/>
+                        </WrapPanel>
+                        <TextBlock Text="4. 查询结果 (点击列表高亮地图):" FontWeight="Bold" Margin="0,0,0,5"/>
                         <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="3">
-                            <DataGrid x:Name="dgSearchResults" Height="380" AutoGenerateColumns="True" IsReadOnly="True" 
+                            <DataGrid x:Name="dgSearchResults" Height="300" AutoGenerateColumns="True" IsReadOnly="True" 
                       Background="White" HeadersVisibility="Column" SelectionMode="Single"
                       SelectionChanged="dgSearchResults_SelectionChanged"
                       ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"/>

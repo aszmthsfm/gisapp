@@ -32,6 +32,9 @@ namespace gisappwpf
         // 记住当前点击选中的图层，供“图层操作”选项卡使用
         private IFeatureLayer _selectedLayer = null;
 
+        // 记录当前地图处于交互状态
+        private string _currentMapAction = "None";
+
         public MainWindow()
         {
             InitializeComponent();
@@ -68,10 +71,11 @@ namespace gisappwpf
 
             try
             {
+                lstLayers.Items.Clear();
                 // 2. 【解耦】：直接呼叫数据库助手获取连接
                 IFeatureWorkspace featureWorkspace = GisDbHelper.GetFeatureWorkspace();
 
-                // 3. 批量加载图层 (利用 GisStyleHelper 进行美化渲染)
+                // 3. 批量加载图层 
                 // (1) 学校范围
                 IFeatureClass boundaryFC = featureWorkspace.OpenFeatureClass("public.boundary");
                 IFeatureLayer boundaryLayer = new FeatureLayer { FeatureClass = boundaryFC, Name = "学校范围" };
@@ -159,6 +163,7 @@ namespace gisappwpf
                 axMapControl.ActiveView.Refresh();
 
                 axMapControl.OnMouseMove += AxMapControl_OnMouseMove;
+                axMapControl.OnMouseDown += AxMapControl_OnMouseDown;
 
                 cmbQueryLayers.ItemsSource = lstLayers.Items;
                 if (cmbQueryLayers.Items.Count > 0) cmbQueryLayers.SelectedIndex = 0;
@@ -236,7 +241,6 @@ namespace gisappwpf
                     axMapControl.Extent = newLayer.AreaOfInterest;
                     axMapControl.ActiveView.Refresh();
 
-                    
                     MessageBox.Show("图层 [" + fileName + "] 导入成功！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
@@ -271,7 +275,6 @@ namespace gisappwpf
 
                     // 5. 清理全局变量并重置右侧状态提示
                     _selectedLayer = null;
-                    
 
                     // 6. 刷新地图视图
                     axMapControl.ActiveView.Refresh();
@@ -625,6 +628,147 @@ namespace gisappwpf
             // 返回数据上下文
             return target.DataContext as LayerItem;
         }
+
+        // ==================== 空间查询：交互绘制事件 ====================
+
+        // ==================== 空间查询：改变交互状态 ====================
+
+        private void btnDrawRect_Click(object sender, RoutedEventArgs e)
+        {
+            if (cmbQueryLayers.SelectedItem == null) { MessageBox.Show("请先选择图层！"); return; }
+
+            // 1. 设置状态为“准备画矩形”
+            _currentMapAction = "DrawRect";
+            // 2. 清除平移、放大等其他工具的干扰
+            axMapControl.CurrentTool = null;
+            // 3. 鼠标变成十字星，提示用户去地图上画
+            axMapControl.MousePointer = esriControlsMousePointer.esriPointerCrosshair;
+        }
+
+        private void btnDrawPolygon_Click(object sender, RoutedEventArgs e)
+        {
+            if (cmbQueryLayers.SelectedItem == null) { MessageBox.Show("请先选择图层！"); return; }
+
+            _currentMapAction = "DrawPolygon";
+            axMapControl.CurrentTool = null;
+            axMapControl.MousePointer = esriControlsMousePointer.esriPointerCrosshair;
+        }
+
+        private void btnClearSelect_Click(object sender, RoutedEventArgs e)
+        {
+            _currentMapAction = "None";
+            axMapControl.MousePointer = esriControlsMousePointer.esriPointerDefault;
+
+            // 清除地图上的所有高亮选择
+            axMapControl.Map.ClearSelection();
+            axMapControl.ActiveView.PartialRefresh(esriViewDrawPhase.esriViewGeoSelection, null, null);
+
+            // 清空数据表格
+            dgSearchResults.ItemsSource = null;
+        }
+
+        // ==================== 地图鼠标按下事件 ====================
+        private void AxMapControl_OnMouseDown(object sender, IMapControlEvents2_OnMouseDownEvent e)
+        {
+            // 如果不是左键点击，或者当前没有处于画图状态，则直接忽略
+            if (e.button != 1 || _currentMapAction == "None") return;
+
+            IGeometry searchGeometry = null;
+
+            if (_currentMapAction == "DrawRect")
+            {
+                // 在鼠标按下的位置开始画矩形
+                searchGeometry = axMapControl.TrackRectangle();
+            }
+            else if (_currentMapAction == "DrawPolygon")
+            {
+                // 在鼠标按下的位置开始画多边形
+                searchGeometry = axMapControl.TrackPolygon();
+            }
+
+            // 画完之后，马上恢复默认状态（变成普通的鼠标指针）
+            _currentMapAction = "None";
+            axMapControl.MousePointer = esriControlsMousePointer.esriPointerDefault;
+
+            // 如果用户画出了有效的图形，执行空间查询
+            if (searchGeometry != null && !searchGeometry.IsEmpty)
+            {
+                ExecuteSpatialQuery(searchGeometry);
+            }
+        }
+
+        // ==================== 空间查询：核心执行逻辑 ====================
+        // 将用户画的图形转换为数据库查询条件，并生成表格
+        private void ExecuteSpatialQuery(IGeometry searchGeometry)
+        {
+            LayerItem selectedItem = cmbQueryLayers.SelectedItem as LayerItem;
+            if (selectedItem == null || selectedItem.ArcGisLayer == null) return;
+
+            IFeatureLayer targetLayer = selectedItem.ArcGisLayer;
+
+            try
+            {
+                // 1. 构建空间过滤器 (ISpatialFilter)
+                ISpatialFilter spatialFilter = new SpatialFilterClass();
+                spatialFilter.Geometry = searchGeometry;
+
+                // 设置空间关系：相交 (Intersects)。只要要素和我们画的框有任何接触，就会被查出来
+                spatialFilter.SpatialRel = esriSpatialRelEnum.esriSpatialRelIntersects;
+
+                // 2. 在地图上执行选择
+                IFeatureSelection featureSelection = (IFeatureSelection)targetLayer;
+                axMapControl.Map.ClearSelection();
+                // 执行查询：传入空间过滤器
+                featureSelection.SelectFeatures(spatialFilter, esriSelectionResultEnum.esriSelectionResultNew, false);
+
+                // 3. 构建 DataTable (跟之前的属性查询逻辑一致)
+                DataTable dt = new DataTable();
+                IFeatureClass fc = targetLayer.FeatureClass;
+
+                for (int i = 0; i < fc.Fields.FieldCount; i++)
+                {
+                    IField field = fc.Fields.get_Field(i);
+                    if (field.Type != esriFieldType.esriFieldTypeGeometry)
+                        dt.Columns.Add(field.Name);
+                }
+
+                ISelectionSet selectionSet = featureSelection.SelectionSet;
+                ICursor cursor;
+                selectionSet.Search(null, false, out cursor);
+                IFeatureCursor featCursor = cursor as IFeatureCursor;
+                IFeature feature;
+
+                while ((feature = featCursor.NextFeature()) != null)
+                {
+                    DataRow row = dt.NewRow();
+                    for (int i = 0; i < fc.Fields.FieldCount; i++)
+                    {
+                        IField field = fc.Fields.get_Field(i);
+                        if (field.Type != esriFieldType.esriFieldTypeGeometry)
+                        {
+                            object val = feature.get_Value(i);
+                            row[field.Name] = (val == null || Convert.IsDBNull(val)) ? "" : val.ToString();
+                        }
+                    }
+                    dt.Rows.Add(row);
+                }
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(cursor);
+
+                // 4. 更新表格视图并刷新地图
+                dgSearchResults.ItemsSource = dt.DefaultView;
+                axMapControl.ActiveView.PartialRefresh(esriViewDrawPhase.esriViewGeoSelection, null, null);
+
+                if (dt.Rows.Count == 0)
+                {
+                    MessageBox.Show("您画的区域内没有找到任何要素。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("空间查询失败：" + ex.Message, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
 
        
     }
