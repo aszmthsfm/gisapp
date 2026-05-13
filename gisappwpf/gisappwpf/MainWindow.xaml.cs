@@ -700,6 +700,92 @@ namespace gisappwpf
         {
             RowAttributeTable.Height = new GridLength(0);
         }
+
+        // ==================== 快捷模糊查询 ====================
+        private void BtnNameSearch_Click(object sender, RoutedEventArgs e)
+        {
+            string searchKeyword = txtSearchName.Text.Trim();
+            if (string.IsNullOrEmpty(searchKeyword))
+            {
+                MessageBox.Show("请输入要搜索的名称关键字！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // 这里以用户在左侧 TOC (图层列表) 选中的图层作为搜索目标
+            if (_selectedLayer == null)
+            {
+                MessageBox.Show("请先在左侧图层列表中单击选中一个要搜索的图层！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                // 改变鼠标状态为等待
+                System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
+
+                // 1. 构建模糊查询的 SQL 语句 (ArcGIS Shapefile 使用 % 作为通配符)
+                // 【⚠️重要提示】：这里的 "Name" 需要替换为你实际 Shapefile 属性表中的名称字段名（例如 "NAME", "名称", "MC" 等）
+                string searchField = "Name";
+                string whereClause = string.Format("{0} LIKE '%{1}%'", searchField, searchKeyword);
+
+                IQueryFilter qf = new QueryFilterClass();
+                qf.WhereClause = whereClause;
+
+                // 2. 在选中的图层上执行选择
+                IFeatureSelection featureSelection = (IFeatureSelection)_selectedLayer;
+                axMapControl.Map.ClearSelection();
+                featureSelection.SelectFeatures(qf, esriSelectionResultEnum.esriSelectionResultNew, false);
+
+                // 3. 调用你现有的 Helper 转换结果并展示到底部表格
+                IEnvelope fullEnv;
+                DataTable dt = GisQueryHelper.ConvertSelectionToDataTable(featureSelection, out fullEnv);
+
+                if (dt.Rows.Count == 0)
+                {
+                    MessageBox.Show("未找到包含该名称的要素。", "查询结果", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                // 绑定表格数据
+                dgSearchResults.ItemsSource = dt.DefaultView;
+
+                // 同步底部的“当前查询图层”下拉框，避免点表格联动地图时报错
+                foreach (LayerItem item in cmbQueryLayers.Items)
+                {
+                    if (item.ArcGisLayer == _selectedLayer)
+                    {
+                        cmbQueryLayers.SelectedItem = item;
+                        break;
+                    }
+                }
+
+                // 展开底栏面板
+                RowAttributeTable.Height = new GridLength(250);
+
+                // 4. 缩放地图到搜索结果的范围
+                if (!fullEnv.IsEmpty)
+                {
+                    fullEnv.Expand(1.5, 1.5, true);
+                    axMapControl.Extent = fullEnv;
+                }
+
+                // 刷新地图高亮
+                axMapControl.ActiveView.PartialRefresh(esriViewDrawPhase.esriViewGeoSelection, null, null);
+                axMapControl.ActiveView.Refresh();
+
+                txtStatusBar.Text = string.Format("模糊搜索完成: 找到 {0} 条记录。", dt.Rows.Count);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("搜索失败！\n原因可能是当前图层没有该字段，请检查字段名是否正确。\n详细报错：" + ex.Message,
+                                "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                // 恢复鼠标状态
+                System.Windows.Input.Mouse.OverrideCursor = null;
+            }
+        }
        
     }
 }

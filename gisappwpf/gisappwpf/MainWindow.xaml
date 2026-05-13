@@ -71,8 +71,14 @@
                     <Button x:Name="btnDrawRect" Content="⬜ 矩形选择" Style="{StaticResource TopToolButtonStyle}" Click="btnDrawRect_Click"/>
                     <Button x:Name="btnDrawPolygon" Content="🛑 多边形选择" Style="{StaticResource TopToolButtonStyle}" Click="btnDrawPolygon_Click"/>
                     <Button x:Name="btnOpenSpatialQuery" Content="🗺️ 按位置选择" Style="{StaticResource TopToolButtonStyle}" Click="btnOpenSpatialQuery_Click"/>
-                    <Button x:Name="btnOpenAdvancedQuery" Content="⚙️ SQL属性查询" Style="{StaticResource TopToolButtonStyle}" Click="btnOpenAdvancedQuery_Click"/>
+                    <Button x:Name="btnOpenAdvancedQuery" Content="⚙️ 属性查询" Style="{StaticResource TopToolButtonStyle}" Click="btnOpenAdvancedQuery_Click"/>
 
+                    <Rectangle Width="1" Height="24" Fill="#337868" Margin="10,0"/>
+
+                    <TextBlock Text="快捷搜索:" Foreground="White" VerticalAlignment="Center" Margin="5,0"/>
+                    <TextBox x:Name="txtSearchName" Width="120" Height="26" VerticalContentAlignment="Center" Margin="0,0,5,0" ToolTip="输入要素名称进行模糊搜索"/>
+                    <Button x:Name="btnNameSearch" Content="🔍 搜索名称" Style="{StaticResource TopToolButtonStyle}" Click="BtnNameSearch_Click"/>
+                    
                     <Rectangle Width="1" Height="24" Fill="#337868" Margin="10,0"/>
                     <Button x:Name="btnClearSelect" Content="❌ 清除选择/重置" Style="{StaticResource TopToolButtonStyle}" Click="btnClearSelect_Click" Foreground="#FFD7D7"/>
                 </StackPanel>
