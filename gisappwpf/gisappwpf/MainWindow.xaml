@@ -97,8 +97,8 @@
                         <TextBlock Text="图层管理 (TOC)" VerticalAlignment="Center" Margin="15,0" FontWeight="SemiBold" Foreground="#444"/>
                     </Border>
 
-                    <ListBox x:Name="lstLayers" Grid.Row="1" BorderThickness="0" Background="Transparent"
-         SelectionChanged="lstLayers_SelectionChanged" HorizontalContentAlignment="Stretch">
+                    <ListBox x:Name="lstLayers" Grid.Row="1" Margin="10" BorderThickness="1" BorderBrush="#E0E5EB" Background="White"
+                             SelectionChanged="lstLayers_SelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
 
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">
@@ -133,12 +133,44 @@
 
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <CheckBox IsChecked="{Binding IsVisible}" VerticalAlignment="Center" Margin="0,0,10,0" Click="LayerVisibility_Click" Tag="{Binding}"/>
-                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="13" Foreground="#333"/>
-                                </StackPanel>
+                                <Grid Margin="0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="26"/>
+                                     
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsVisible}" VerticalAlignment="Center" Margin="0,0,8,0" Click="LayerVisibility_Click" Tag="{Binding}"/>
+
+                                    <Border Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{Binding SymbolColor}" BorderBrush="#999">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Width" Value="14"/>
+                                                <Setter Property="Height" Value="14"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Setter Property="CornerRadius" Value="1"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ShapeType}" Value="Point">
+                                                        <Setter Property="CornerRadius" Value="7"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding ShapeType}" Value="Polyline">
+                                                        <Setter Property="Height" Value="4"/>
+                                                        <Setter Property="Width" Value="18"/>
+                                                        <Setter Property="BorderThickness" Value="0"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+
+                                   
+
+                                    <TextBlock Grid.Column="2" Text="{Binding Name}" VerticalAlignment="Center" FontSize="14" Foreground="#333" TextTrimming="CharacterEllipsis"/>
+                                </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
+
                     </ListBox>
                 </Grid>
             </Border>
@@ -180,7 +212,9 @@
 
                         <DataGrid x:Name="dgSearchResults" Grid.Row="1" AutoGenerateColumns="True" IsReadOnly="True" 
                                   Background="White" HeadersVisibility="Column" SelectionMode="Single"
-                                  SelectionChanged="dgSearchResults_SelectionChanged" BorderThickness="0"
+                                  SelectionChanged="dgSearchResults_SelectionChanged" 
+                              
+                                  BorderThickness="0"
                                   RowHeight="28" AlternatingRowBackground="#FAFAFA"
                                   ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
                     </Grid>
