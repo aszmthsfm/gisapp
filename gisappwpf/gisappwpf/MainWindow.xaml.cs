@@ -38,28 +38,8 @@ namespace gisappwpf
         public MainWindow()
         {
             InitializeComponent();
-            this.Loaded += MainWindow_Loaded;
+            this.Loaded += MainWindow_Loaded;            
 
-            // ===== 解决空域问题：处理 Popup 悬浮控件的跟随与隐藏 =====
-
-            // 窗口拖动或大小改变时，微调 Popup 坐标强制其重绘以贴合地图
-            this.LocationChanged += (s, e) => SyncPopupPosition();
-            this.SizeChanged += (s, e) => SyncPopupPosition();
-
-            // 切换到其他软件时隐藏工具栏，切回来时显示，避免幽灵悬浮
-            this.Deactivated += (s, e) => MapToolbarPopup.IsOpen = false;
-            this.Activated += (s, e) => MapToolbarPopup.IsOpen = true;
-
-        }
-
-        private void SyncPopupPosition()
-        {
-            if (MapToolbarPopup.IsOpen)
-            {
-                // WPF 黑科技：极小的偏移量不会被肉眼察觉，但能强制 Popup 重新对齐
-                MapToolbarPopup.HorizontalOffset += 0.01;
-                MapToolbarPopup.HorizontalOffset -= 0.01;
-            }
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -72,92 +52,18 @@ namespace gisappwpf
             try
             {
                 lstLayers.Items.Clear();
-                // 2. 【解耦】：直接呼叫数据库助手获取连接
+                // 2. ：直接呼叫数据库助手获取连接
                 IFeatureWorkspace featureWorkspace = GisDbHelper.GetFeatureWorkspace();
 
-                // 3. 批量加载图层 
-                // (1) 学校范围
-                IFeatureClass boundaryFC = featureWorkspace.OpenFeatureClass("public.boundary");
-                IFeatureLayer boundaryLayer = new FeatureLayer { FeatureClass = boundaryFC, Name = "学校范围" };
-                GisStyleHelper.SetPolygonSymbol(boundaryLayer, 245, 245, 245);
-                axMapControl.AddLayer(boundaryLayer);
-                lstLayers.Items.Insert(0, new LayerItem
-                {
-                    ArcGisLayer = boundaryLayer,
-                    Name = boundaryLayer.Name,
-                    IsVisible = true,
-                    SymbolColor = new SolidColorBrush(Color.FromRgb(245, 245, 245)),
-                    ShapeType = "Polygon"
-                });
-                // (2) 水系
-                IFeatureClass waterFC = featureWorkspace.OpenFeatureClass("public.water");
-                IFeatureLayer waterLayer = new FeatureLayer { FeatureClass = waterFC, Name = "水系" };
-                GisStyleHelper.SetPolygonSymbol(waterLayer, 151, 219, 242, 100, 150, 180);
-                axMapControl.AddLayer(waterLayer);
-                lstLayers.Items.Insert(0, new LayerItem
-                {
-                    ArcGisLayer = waterLayer,
-                    Name = waterLayer.Name,
-                    IsVisible = true,
-                    SymbolColor = new SolidColorBrush(Color.FromRgb(151, 219, 242)),
-                     ShapeType = "Polygon"
-                });
-                // (3) 绿地
-                IFeatureClass greenFC = featureWorkspace.OpenFeatureClass("public.green");
-                IFeatureLayer greenLayer = new FeatureLayer { FeatureClass = greenFC, Name = "绿地" };
-                GisStyleHelper.SetPolygonSymbol(greenLayer, 195, 230, 175);
-                axMapControl.AddLayer(greenLayer);
-                lstLayers.Items.Insert(0, new LayerItem
-                {
-                    ArcGisLayer = greenLayer,
-                    Name = greenLayer.Name,
-                    IsVisible = true,
-                    SymbolColor = new SolidColorBrush(Color.FromRgb(195, 230, 175)),
-                     ShapeType = "Polygon"
-                });
+                // 3. 【解耦】：从 Helper 批量获取构建好的校园图层
+                List<LayerItem> defaultLayers = GisLayerHelper.GetDefaultCampusLayers(featureWorkspace);
 
-                // (4) 道路
-                IFeatureClass roadFC = featureWorkspace.OpenFeatureClass("public.road");
-                IFeatureLayer roadLayer = new FeatureLayer { FeatureClass = roadFC, Name = "道路路网" };
-                GisStyleHelper.SetLineSymbol(roadLayer, 200, 200, 200, 1.5);
-                axMapControl.AddLayer(roadLayer);
-                lstLayers.Items.Insert(0, new LayerItem
+                // 将获取到的图层依次加载到地图和 UI 列表中
+                foreach (var layerItem in defaultLayers)
                 {
-                    ArcGisLayer = roadLayer,
-                    Name = roadLayer.Name,
-                    IsVisible = true,
-                    SymbolColor = new SolidColorBrush(Color.FromRgb(200, 200, 200)),
-                    ShapeType = "Polyline"
-                });
-
-                // (5) 建筑 (最顶层)
-                IFeatureClass buildingFC = featureWorkspace.OpenFeatureClass("public.building");
-                IFeatureLayer buildingLayer = new FeatureLayer { FeatureClass = buildingFC, Name = "校园建筑" };
-                GisStyleHelper.SetPolygonSymbol(buildingLayer, 253, 218, 185, 180, 150, 120);
-                axMapControl.AddLayer(buildingLayer);
-                lstLayers.Items.Insert(0, new LayerItem
-                {
-                    ArcGisLayer = buildingLayer,
-                    Name = buildingLayer.Name,
-                    IsVisible = true,
-                    SymbolColor = new SolidColorBrush(Color.FromRgb(253, 218, 185)),
-                     ShapeType = "Polygon"
-                });
-
-                // (6) 操场
-                IFeatureClass playgroundFC = featureWorkspace.OpenFeatureClass("public.playground");
-                IFeatureLayer playgroundLayer = new FeatureLayer { FeatureClass = playgroundFC, Name = "校园操场" };
-                GisStyleHelper.SetPolygonSymbol(playgroundLayer, 235, 165, 150);
-                axMapControl.AddLayer(playgroundLayer);
-                lstLayers.Items.Insert(0, new LayerItem
-                {
-                    ArcGisLayer = playgroundLayer,
-                    Name = playgroundLayer.Name,
-                    IsVisible = true,
-                    SymbolColor = new SolidColorBrush(Color.FromRgb(235, 165, 150)),
-                     ShapeType = "Polygon"
-                });
-
+                    axMapControl.AddLayer(layerItem.ArcGisLayer);
+                    lstLayers.Items.Insert(0, layerItem); // 插入到列表首位，保证层级正确
+                }
                 // 4. 视图刷新与事件绑定
                 axMapControl.Extent = axMapControl.FullExtent;
                 axMapControl.ActiveView.Refresh();
@@ -186,66 +92,25 @@ namespace gisappwpf
             {
                 try
                 {
-                    string fullPath = openFileDialog.FileName;
-                    string folderPath = System.IO.Path.GetDirectoryName(fullPath);
-                    string fileName = System.IO.Path.GetFileNameWithoutExtension(fullPath);
+                    // 1. 【解耦调用】：使用 Helper 类一键加载并包装数据
+                    // newItem 包含了 IFeatureLayer 和 UI 需要的颜色、名称等信息
+                    LayerItem newItem = GisLayerHelper.LoadShapefileAsLayerItem(openFileDialog.FileName);
 
-                    // 1. 建立 Shapefile 工作空间工厂
-                    IWorkspaceFactory workspaceFactory = new ShapefileWorkspaceFactory();
-                    IFeatureWorkspace featureWorkspace = (IFeatureWorkspace)workspaceFactory.OpenFromFile(folderPath, 0);
-                    
-                    // 2. 打开要素类并创建图层
-                    IFeatureClass featureClass = featureWorkspace.OpenFeatureClass(fileName);
-                    IFeatureLayer newLayer = new FeatureLayer
-                    {
-                        FeatureClass = featureClass,
-                        Name = fileName // 默认用文件名做图层名
-                    };
+                    // 2. 将图层加载到底层 ArcGIS 地图容器
+                    axMapControl.AddLayer(newItem.ArcGisLayer);
 
-                    // 3. 智能判断几何类型，并赋予默认渲染色 (这里用低饱和度的莫兰迪色)
-                    string uiShapeType = "Polygon";
-                    SolidColorBrush uiColor = new SolidColorBrush(Color.FromRgb(200, 180, 180)); 
-                    
-                    if (featureClass.ShapeType == esriGeometryType.esriGeometryPolygon)
-                    {
-                        uiShapeType = "Polygon";
-                        GisStyleHelper.SetPolygonSymbol(newLayer, 200, 180, 180);
-                    }
-                    else if (featureClass.ShapeType == esriGeometryType.esriGeometryPolyline)
-                    {
-                        uiShapeType = "Polyline";
-                        uiColor = new SolidColorBrush(Color.FromRgb(150, 150, 150));
-                        GisStyleHelper.SetLineSymbol(newLayer, 150, 150, 150, 2);
-                    }
-                    else if (featureClass.ShapeType == esriGeometryType.esriGeometryPoint)
-                    {
-                        uiShapeType = "Point";
-                        uiColor = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // 点默认给个橙色
-                        GisStyleHelper.SetPointSymbol(newLayer, 255, 165, 0);
-                    }
+                    // 3. 同步更新到左侧 WPF 图层列表 (插入到最顶层)
+                    lstLayers.Items.Insert(0, newItem);
 
-                    // 4. 将图层加载到底层地图容器
-                    axMapControl.AddLayer(newLayer);
-
-                    // 5. 同步更新到我们自定义的 WPF 图层列表 (插入到最顶层)
-                    lstLayers.Items.Insert(0, new LayerItem
-                    {
-                        ArcGisLayer = newLayer,
-                        Name = newLayer.Name,
-                        IsVisible = true,
-                        SymbolColor = uiColor,
-                        ShapeType = uiShapeType
-                    });
-
-                    // 6. 刷新地图并缩放到该图层范围
-                    axMapControl.Extent = newLayer.AreaOfInterest;
+                    // 4. 刷新地图并缩放到该图层范围
+                    axMapControl.Extent = newItem.ArcGisLayer.AreaOfInterest;
                     axMapControl.ActiveView.Refresh();
 
-                    MessageBox.Show("图层 [" + fileName + "] 导入成功！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("图层 [" + newItem.Name + "] 导入成功！", "成功");
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("导入 Shapefile 失败，请确保文件完整且未被其他程序占用。\n详细信息：" + ex.Message, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("导入失败：" + ex.Message);
                 }
             }
         }
@@ -287,6 +152,7 @@ namespace gisappwpf
         }
 
         // ==================== 导出地图 ====================
+        /*
         private void BtnExportMap_Click(object sender, RoutedEventArgs e)
 {
     SaveFileDialog saveFileDialog = new SaveFileDialog();
@@ -318,7 +184,7 @@ namespace gisappwpf
         }
     }
 }
-
+        */
 
         // ==================== 顶部工具栏交互 ====================
 
@@ -407,7 +273,7 @@ namespace gisappwpf
             }
         }
 
-        // 2. 鼠标点击选中某个图层时（触发灰底高亮，并联动右侧“图层操作”选项卡）
+        // 2. 鼠标点击选中某个图层时触发灰底高亮
         private void lstLayers_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             LayerItem selectedItem = lstLayers.SelectedItem as LayerItem;
@@ -415,7 +281,10 @@ namespace gisappwpf
             if (selectedItem != null)
             {
                 _selectedLayer = selectedItem.ArcGisLayer; // 赋值给全局变量
-                
+                if (cmbQueryLayers != null)
+                {
+                    cmbQueryLayers.SelectedItem = selectedItem;
+                }
             }
         }
 
@@ -445,44 +314,14 @@ namespace gisappwpf
                     axMapControl.Map.ClearSelection();
                     featureSelection.SelectFeatures(qf, esriSelectionResultEnum.esriSelectionResultNew, false);
 
-                    // 4. ========== 动态构建 DataTable 并展示到 DataGrid ==========
-                    DataTable dt = new DataTable();
-                    IFeatureClass fc = targetLayer.FeatureClass;
-
-                    for (int i = 0; i < fc.Fields.FieldCount; i++)
-                    {
-                        IField field = fc.Fields.get_Field(i);
-                        if (field.Type != esriFieldType.esriFieldTypeGeometry)
-                            dt.Columns.Add(field.Name);
-                    }
-
-                    ISelectionSet selectionSet = featureSelection.SelectionSet;
-                    ICursor cursor;
-                    selectionSet.Search(null, false, out cursor);
-                    IFeatureCursor featCursor = cursor as IFeatureCursor;
-                    IFeature feature;
-
-                    IEnvelope fullEnv = new EnvelopeClass(); // 注意加 Class
-
-                    while ((feature = featCursor.NextFeature()) != null)
-                    {
-                        DataRow row = dt.NewRow();
-                        for (int i = 0; i < fc.Fields.FieldCount; i++)
-                        {
-                            IField field = fc.Fields.get_Field(i);
-                            if (field.Type != esriFieldType.esriFieldTypeGeometry)
-                            {
-                                object val = feature.get_Value(i);
-                                row[field.Name] = (val == null || Convert.IsDBNull(val)) ? "" : val.ToString();
-                            }
-                        }
-                        dt.Rows.Add(row);
-                        fullEnv.Union(feature.Shape.Envelope);
-                    }
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(cursor);
-
+                    // 4. 【解耦】：通过 Helper 一键获取数据表和边界范围
+                    IEnvelope fullEnv;
+                    DataTable dt = GisQueryHelper.ConvertSelectionToDataTable(featureSelection, out fullEnv);
                     // 5. 绑定表格并缩放地图
                     dgSearchResults.ItemsSource = dt.DefaultView;
+
+                    // 展开底栏高度到 250 像素
+                    RowAttributeTable.Height = new GridLength(250);
 
                     if (!fullEnv.IsEmpty)
                     {
@@ -534,49 +373,41 @@ namespace gisappwpf
     catch { /* 忽略点击无法获取几何的异常 */ }
 }
         // ==================== 右键菜单：查看属性表 ====================
+        // ==================== 右键菜单：查看属性表 (底栏联动版) ====================
         private void MenuItem_ViewAttributes_Click(object sender, RoutedEventArgs e)
         {
-            // 1. 获取触发右键菜单的图层对象
+            // 1. 获取触发右键的图层项
             LayerItem item = GetLayerItemFromMenuItem(sender);
             if (item == null || item.ArcGisLayer == null) return;
 
             try
             {
-                // 2. 构建属性表数据
-                DataTable dt = new DataTable();
-                var fc = item.ArcGisLayer.FeatureClass;
-                for (int i = 0; i < fc.Fields.FieldCount; i++)
-                {
-                    var field = fc.Fields.get_Field(i);
-                    if (field.Type != ESRI.ArcGIS.Geodatabase.esriFieldType.esriFieldTypeGeometry)
-                        dt.Columns.Add(field.Name);
-                }
+                // 2. 设置鼠标状态为忙碌
+                System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
 
-                var cursor = fc.Search(null, false);
-                ESRI.ArcGIS.Geodatabase.IFeature feature;
-                while ((feature = cursor.NextFeature()) != null)
-                {
-                    DataRow row = dt.NewRow();
-                    for (int i = 0; i < fc.Fields.FieldCount; i++)
-                    {
-                        if (fc.Fields.get_Field(i).Type != ESRI.ArcGIS.Geodatabase.esriFieldType.esriFieldTypeGeometry)
-                        {
-                            object val = feature.get_Value(i);
-                            row[fc.Fields.get_Field(i).Name] = (val == null || Convert.IsDBNull(val)) ? "" : val.ToString();
-                        }
-                    }
-                    dt.Rows.Add(row);
-                }
-                System.Runtime.InteropServices.Marshal.ReleaseComObject(cursor);
+                // 3. 【解耦调用】：直接呼叫我们之前写的查询助手获取全表数据
+                // 注意：这里需要我们在 GisQueryHelper 中实现的 ConvertFeatureClassToDataTable 方法
+                DataTable dt = GisQueryHelper.ConvertFeatureClassToDataTable(item.ArcGisLayer.FeatureClass);
 
-                // 3. 弹出新窗口显示
-                Window tableWin = new Window { Title = "属性表: " + item.Name, Width = 800, Height = 500 };
-                tableWin.Content = new DataGrid { ItemsSource = dt.DefaultView, IsReadOnly = true };
-                tableWin.Show();
+                // 4. 将数据展示在底部的 DataGrid 中
+                dgSearchResults.ItemsSource = dt.DefaultView;
+
+                // 5. 【关键】：同步底部的“当前查询图层”下拉框，确保后续交互逻辑正确
+                cmbQueryLayers.SelectedItem = item;
+
+                // 6. 展开底部面板（设定高度为 300）
+                RowAttributeTable.Height = new GridLength(300);
+
+                // 7. 更新状态栏提示
+                txtStatusBar.Text = "已加载图层属性表: " + item.Name + " (共 " + dt.Rows.Count + " 条记录)";
             }
             catch (Exception ex)
             {
-                MessageBox.Show("打开属性表失败: " + ex.Message);
+                MessageBox.Show("无法读取属性表: " + ex.Message, "错误");
+            }
+            finally
+            {
+                System.Windows.Input.Mouse.OverrideCursor = null;
             }
         }
 
@@ -675,6 +506,8 @@ namespace gisappwpf
 
             // 5. 清空右侧的属性数据表格
             dgSearchResults.ItemsSource = null;
+
+            RowAttributeTable.Height = new GridLength(0);
         }
 
         // ==================== 地图鼠标按下事件 ====================
@@ -731,38 +564,9 @@ namespace gisappwpf
                 // 执行查询：传入空间过滤器
                 featureSelection.SelectFeatures(spatialFilter, esriSelectionResultEnum.esriSelectionResultNew, false);
 
-                // 3. 构建 DataTable (跟之前的属性查询逻辑一致)
-                DataTable dt = new DataTable();
-                IFeatureClass fc = targetLayer.FeatureClass;
-
-                for (int i = 0; i < fc.Fields.FieldCount; i++)
-                {
-                    IField field = fc.Fields.get_Field(i);
-                    if (field.Type != esriFieldType.esriFieldTypeGeometry)
-                        dt.Columns.Add(field.Name);
-                }
-
-                ISelectionSet selectionSet = featureSelection.SelectionSet;
-                ICursor cursor;
-                selectionSet.Search(null, false, out cursor);
-                IFeatureCursor featCursor = cursor as IFeatureCursor;
-                IFeature feature;
-
-                while ((feature = featCursor.NextFeature()) != null)
-                {
-                    DataRow row = dt.NewRow();
-                    for (int i = 0; i < fc.Fields.FieldCount; i++)
-                    {
-                        IField field = fc.Fields.get_Field(i);
-                        if (field.Type != esriFieldType.esriFieldTypeGeometry)
-                        {
-                            object val = feature.get_Value(i);
-                            row[field.Name] = (val == null || Convert.IsDBNull(val)) ? "" : val.ToString();
-                        }
-                    }
-                    dt.Rows.Add(row);
-                }
-                System.Runtime.InteropServices.Marshal.ReleaseComObject(cursor);
+                // 3. 调用数据处理服务
+                IEnvelope fullEnv;
+                DataTable dt = GisQueryHelper.ConvertSelectionToDataTable(featureSelection, out fullEnv);
 
                 // 4. 更新表格视图并刷新地图
                 dgSearchResults.ItemsSource = dt.DefaultView;
@@ -836,41 +640,9 @@ namespace gisappwpf
                     axMapControl.Map.ClearSelection();
                     featureSelection.SelectFeatures(spatialFilter, esriSelectionResultEnum.esriSelectionResultNew, false);
 
-                    // 7. ========== 动态构建结果表格 (复用你写过的逻辑) ==========
-                    DataTable dt = new DataTable();
-                    IFeatureClass fc = targetLayer.FeatureClass;
-
-                    for (int i = 0; i < fc.Fields.FieldCount; i++)
-                    {
-                        IField field = fc.Fields.get_Field(i);
-                        if (field.Type != esriFieldType.esriFieldTypeGeometry)
-                            dt.Columns.Add(field.Name);
-                    }
-
-                    ISelectionSet selectionSet = featureSelection.SelectionSet;
-                    ICursor cursor;
-                    selectionSet.Search(null, false, out cursor);
-                    IFeatureCursor featCursor = cursor as IFeatureCursor;
-                    IFeature feature;
-
-                    IEnvelope fullEnv = new EnvelopeClass(); 
-
-                    while ((feature = featCursor.NextFeature()) != null)
-                    {
-                        DataRow row = dt.NewRow();
-                        for (int i = 0; i < fc.Fields.FieldCount; i++)
-                        {
-                            IField field = fc.Fields.get_Field(i);
-                            if (field.Type != esriFieldType.esriFieldTypeGeometry)
-                            {
-                                object val = feature.get_Value(i);
-                                row[field.Name] = (val == null || Convert.IsDBNull(val)) ? "" : val.ToString();
-                            }
-                        }
-                        dt.Rows.Add(row);
-                        fullEnv.Union(feature.Shape.Envelope);
-                    }
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(cursor);
+                    // 7. 提取拓扑查询结果数据
+                    IEnvelope fullEnv;
+                    DataTable dt = GisQueryHelper.ConvertSelectionToDataTable(featureSelection, out fullEnv);
 
                     // 8. 绑定表格并缩放地图
                     dgSearchResults.ItemsSource = dt.DefaultView;
@@ -921,6 +693,12 @@ namespace gisappwpf
             }
             System.Runtime.InteropServices.Marshal.ReleaseComObject(cursor);
             return searchGeom;
+        }
+
+        // 收起底部属性表面板
+        private void BtnCloseAttributeTable_Click(object sender, RoutedEventArgs e)
+        {
+            RowAttributeTable.Height = new GridLength(0);
         }
        
     }

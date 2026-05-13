@@ -84,6 +84,8 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Helpers\GisLayerHelper.cs" />
+    <Compile Include="Helpers\GisQueryHelper.cs" />
     <Compile Include="SelectByLocationWindow.xaml.cs">
       <DependentUpon>SelectByLocationWindow.xaml</DependentUpon>
     </Compile>
