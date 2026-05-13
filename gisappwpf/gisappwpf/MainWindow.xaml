@@ -100,7 +100,7 @@
                     </Grid.RowDefinitions>
 
                     <Border Grid.Row="0" Background="#F8F9FA" BorderBrush="#E9ECEF" BorderThickness="0,0,0,1">
-                        <TextBlock Text="图层管理 (TOC)" VerticalAlignment="Center" Margin="15,0" FontWeight="SemiBold" Foreground="#444"/>
+                        <TextBlock Text="图层管理 " VerticalAlignment="Center" Margin="15,0" FontWeight="SemiBold" Foreground="#444"/>
                     </Border>
 
                     <ListBox x:Name="lstLayers" Grid.Row="1" Margin="10" BorderThickness="1" BorderBrush="#E0E5EB" Background="White"
